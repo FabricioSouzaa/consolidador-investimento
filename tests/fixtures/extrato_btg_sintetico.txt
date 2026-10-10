@@ -1,0 +1,47 @@
+Extrato d  Cont  Investimento
+Período de 01/09/26   30/09/26
+Sumário - Distribuição em 30/09/26
+Mercados Saldo Bruto R$ 31/08/26 Saldo Líquido R$ 31/08/262 Saldo Bruto R$ 30/09/26 Saldo Líquido R$ 30/09/261
+Rend  Variável 900,00 900,00 1.000,00 1.000,00
+Rend  Fix  500,00 495,00 1.000,00 990,00
+Cont  Corrente 10,00 10,00 20,00 20,00
+Valores em Trânsito 1,00 1,00 2,00 2,00
+Total 1.411,00 1.406,00 2.022,00 2.012,00
+Rend   x  - Detalhamento - CDB | BANCO EXEMPLO S A
+Ativo Emissão Vencimento
+CDB-
+01/07/26 03/07/28 01/07/26 Sim 1 02/07/26 CDI 600,0 0,0100 600,00 0,010500 630,00 5,00 - 625,00
+CDB000AAAAA
+CDB-
+04/05/26 04/05/28 04/05/26 Sim 1 05/05/26 CDI 350,0 0,0100 350,00 0,010571 370,00 4,00 - 366,00
+CDB111BBBBB
+Rend   x  - Posição Consolidad  Por Emissor
+Rend  variável - Posição - ETF
+Código Ativo Qtde. Preço Fechamento R$ Preço Médio R$ 1 Saldo Bruto R$
+ABCD11 ETF EXEMPLO CI 10 20,00 18,00 200,00
+Total em ETF's R$ 200,00
+Rend  variável - Movimentação - ETF
+09/09/26 RENDIMENTO ABCD11 10 - 7,69 - 6,54
+Rend  variável - Posição - Fundos Listados
+Código Ativo Tipo Qtde. Preço Fechamento R$ Preço Médio R$ 1 Saldo Bruto R$
+FIIA11 FII ALFA CI FII 5 100,00 95,00 500,00
+FIIB11 FIAGRO BETA CI FIAGRO 20 10,00 9,00 200,00
+FIIC11 INFRA GAMA CI FIINFRA 1 100,00 120,00 100,00
+Total em Fundos Listados R$ 800,00
+Rend  variável - Movimentação - Fundos Listados
+08/09/26 RENDIMENTO FIIC11 FIINFRA 1 - 1,00 - 1,00
+14/09/26 VENCIMENTO DO DIREITO DE SUBSC FIIA12 FII 1 - - - -
+15/09/26 COMPRA FIIA11 FII 2 98,00 196,00 0,50 196,50
+Cont  corrente - Posição
+Dat  Valor  nanceiro R$
+30/09/26 20,00
+Cont  corrente - Movimentação
+Dat  Descrição Movimentação R$ Saldo cont  investimentos R$
+01/09/26 Saldo Anterior 10,00
+08/09/26 RENDIMENTOS - À VISTA s/ INFRA GAMA CI - FIIC11 1,00 11,00
+15/09/26 COMPRA FIIA11 -196,50 -185,50
+30/09/26 Saldo Final + Rendimento Provisionado de Saldo Remunerado - 20,00
+Valores em trânsito - Rend  Variável
+Dat  Liquidação Descrição Valor R$ 1
+08/10/26 RENDIMENTO - ETF EXEMPLO CI 2,00
+Total 2,00

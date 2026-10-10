@@ -1,0 +1,37 @@
+[project]
+name = "consolidador-investimentos"
+version = "0.1.0"
+description = "Consolida investimentos da B3 a partir de extratos da corretora (CSV/PDF)."
+requires-python = ">=3.9"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "jinja2",
+  "python-multipart",
+  "sqlalchemy>=2",
+  "alembic",
+  "pdfplumber",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=85"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["UP006", "UP007", "UP035", "UP045", "B008"]  # B008: idioma do FastAPI (Depends)
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+ignore_missing_imports = true

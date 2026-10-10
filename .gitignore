@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.db
+.env
+.DS_Store
+
+# Documentos reais da corretora: contêm CPF, endereço e saldos. NUNCA versionar.
+BTG Docs/
+uploads/
+*.pdf
+!tests/fixtures/*.pdf
