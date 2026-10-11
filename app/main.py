@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import Base, engine, get_session
+from app.db import get_session
 from app.importer import ImportRejected, import_btg_pdf
 from app.models import Position, Statement
 
@@ -16,7 +16,6 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 
 app = FastAPI(title="Consolidador de Investimentos")
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-Base.metadata.create_all(engine)  # v1 simples; migrations (Alembic) entram com o Postgres
 
 
 def _latest_portfolio(session: Session) -> Dict[str, object]:

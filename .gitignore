@@ -14,3 +14,4 @@ BTG Docs/
 uploads/
 *.pdf
 !tests/fixtures/*.pdf
+*.egg-info/

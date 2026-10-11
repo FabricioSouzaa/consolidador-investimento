@@ -1,0 +1,87 @@
+import psycopg
+import pytest
+from alembic import command
+from alembic.autogenerate import compare_metadata
+from alembic.config import Config
+from alembic.migration import MigrationContext
+from sqlalchemy import create_engine, inspect
+from sqlalchemy.pool import NullPool
+
+from app.config import normalize_database_url
+from app.db import Base, make_engine
+
+
+def _alembic_config(connection) -> Config:
+    config = Config("alembic.ini")
+    config.attributes["connection"] = connection
+    return config
+
+
+def test_migracoes_criam_o_schema_e_batem_com_os_models(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'm.db'}")
+    with engine.begin() as connection:
+        command.upgrade(_alembic_config(connection), "head")
+        tables = set(inspect(connection).get_table_names())
+        assert {"statement", "position", "movement"} <= tables
+        # Se alguém mudar um model sem criar migration, este teste falha.
+        diff = compare_metadata(MigrationContext.configure(connection), Base.metadata)
+        assert diff == []
+
+
+def test_migracao_pode_ser_desfeita(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'm.db'}")
+    with engine.begin() as connection:
+        config = _alembic_config(connection)
+        command.upgrade(config, "head")
+        command.downgrade(config, "base")
+        assert "statement" not in inspect(connection).get_table_names()
+
+
+def test_url_do_supabase_vira_driver_psycopg():
+    assert normalize_database_url("postgresql://u:p@h:6543/db") == (
+        "postgresql+psycopg://u:p@h:6543/db"
+    )
+    assert normalize_database_url("postgres://u:p@h/db") == "postgresql+psycopg://u:p@h/db"
+    assert normalize_database_url("sqlite:///x.db") == "sqlite:///x.db"
+
+
+def test_engine_postgres_usa_nullpool_e_sem_prepared_statements():
+    engine = make_engine("postgresql+psycopg://u:p@localhost:6543/db")  # não conecta
+    assert isinstance(engine.pool, NullPool)
+    assert engine.dialect.name == "postgresql"
+
+
+def test_engine_postgres_repassa_opcoes_do_pooler_ao_driver(monkeypatch):
+    captured = {}
+
+    def fake_connect(*args, **kwargs):
+        captured.update(kwargs)
+        raise RuntimeError("parou antes de conectar")
+
+    monkeypatch.setattr(psycopg, "connect", fake_connect)
+    engine = make_engine("postgresql+psycopg://u:p@localhost:6543/db")
+    with pytest.raises(RuntimeError):
+        engine.raw_connection()
+    # Sem isso, o pooler em modo transaction quebra com "prepared statement ... does not exist".
+    assert captured["prepare_threshold"] is None
+    assert captured["connect_timeout"] == 10
+
+
+def test_url_invalida_nao_vaza_a_senha():
+    with pytest.raises(RuntimeError) as exc:
+        make_engine("user:senha-secreta@host/db")  # sem esquema: o SQLAlchemy ecoa a string
+    assert "senha-secreta" not in str(exc.value)
+    assert "senha-secreta" not in repr(exc.value.__cause__)
+
+
+def test_migracao_detecta_mudanca_de_precisao(tmp_path):
+    """compare_type=True: mudar Numeric(18,2) -> outro tipo precisa aparecer no diff."""
+    import sqlalchemy as sa
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'm.db'}")
+    with engine.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE t (v INTEGER)"))
+        metadata = sa.MetaData()
+        sa.Table("t", metadata, sa.Column("v", sa.String(10)))
+        ctx = MigrationContext.configure(connection, opts={"compare_type": True})
+        assert compare_metadata(ctx, metadata) != []

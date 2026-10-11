@@ -9,12 +9,16 @@ dependencies = [
   "jinja2",
   "python-multipart",
   "sqlalchemy>=2",
-  "alembic",
+  "alembic>=1.16",
+  "psycopg[binary]>=3.1",
   "pdfplumber",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]  # migrations/ e tests/ não são pacotes instaláveis
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
