@@ -11,11 +11,13 @@ dependencies = [
   "sqlalchemy>=2",
   "alembic>=1.16",
   "psycopg[binary]>=3.1",
+  "pyjwt[crypto]>=2.10",
+  "httpx",
   "pdfplumber",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy"]
+dev = ["pytest", "pytest-cov", "ruff", "mypy"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]  # migrations/ e tests/ não são pacotes instaláveis
@@ -33,7 +35,7 @@ select = ["E", "F", "I", "B", "UP", "S"]
 ignore = ["UP006", "UP007", "UP035", "UP045", "B008"]  # B008: idioma do FastAPI (Depends)
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101"]
+"tests/*" = ["S101", "S105", "S106"]  # asserts e segredos falsos de teste
 
 [tool.mypy]
 python_version = "3.9"

@@ -85,3 +85,23 @@ def test_migracao_detecta_mudanca_de_precisao(tmp_path):
         sa.Table("t", metadata, sa.Column("v", sa.String(10)))
         ctx = MigrationContext.configure(connection, opts={"compare_type": True})
         assert compare_metadata(ctx, metadata) != []
+
+
+def test_migracao_0002_preserva_linhas_existentes(tmp_path):
+    from alembic import command
+    from sqlalchemy import text
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'm.db'}")
+    with engine.begin() as connection:
+        config = _alembic_config(connection)
+        command.upgrade(config, "0001")
+        connection.execute(
+            text(
+                "INSERT INTO statement (sha256, filename, period_start, period_end) "
+                "VALUES ('abc', 'velho.pdf', '2026-09-01', '2026-09-30')"
+            )
+        )
+        command.upgrade(config, "head")
+        row = connection.execute(text("SELECT filename, user_id FROM statement")).one()
+        # linha antiga sobrevive, mas sem dono => invisível para qualquer usuário
+        assert tuple(row) == ("velho.pdf", "")

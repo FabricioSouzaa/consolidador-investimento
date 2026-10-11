@@ -19,6 +19,7 @@ import pdfplumber
 
 from app.models import AssetClass, MovementType
 
+MAX_PAGES = 60  # um extrato mensal tem ~11 páginas; protege contra PDFs patológicos
 NUM = r"\d[\d.]*,\d+"
 DATE = r"\d{2}/\d{2}/\d{2}"
 TICKER = r"[A-Z]{4}\d{1,2}"
@@ -162,6 +163,8 @@ def _summary_key(label: str) -> Optional[str]:
 
 def extract_text(pdf_bytes: bytes) -> str:
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        if len(pdf.pages) > MAX_PAGES:
+            raise ValueError(f"PDF com {len(pdf.pages)} páginas; o limite é {MAX_PAGES}.")
         return "\n".join((page.extract_text() or "") for page in pdf.pages)
 
 

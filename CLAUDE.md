@@ -24,6 +24,13 @@ do BTG (PDF/CSV). Dados são pessoais e financeiros: trate como sensíveis.
   models e migrations divergirem. O app nunca cria tabelas sozinho.
 - Segredos (`DATABASE_URL`, chaves do Supabase) só em variáveis de ambiente, nunca no código.
 
+- Toda rota (exceto /login) depende de `current_user`. Toda consulta parte de
+  `Statement.user_id == user.id`: a conexão com o Postgres ignora o RLS, a autorização é do app.
+- Auth falha fechado: sem `ALLOWED_EMAILS` ou com token inválido, ninguém entra. Nunca logar
+  token, senha ou `DATABASE_URL`. Nunca usar a `service_role key` no app.
+- Rota nova = teste de "sem login", "outro usuário" e "caminho feliz".
+
 ## Fluxo de trabalho (pós-v1)
+Antes de dar push, reproduzir o CI num venv limpo (`pip install -e ".[dev]"` + ruff, mypy, pytest).
 Branch -> PR -> CR por outro agente -> revisão final -> aprovação do dono no GitHub. Nada vai
 direto para `main`. Todo PR precisa de teste e CI verde.

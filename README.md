@@ -19,3 +19,27 @@ Banco: SQLite por padrão; para PostgreSQL (Supabase) defina `DATABASE_URL` com 
 ```
 
 Veja `CLAUDE.md` para as regras do projeto.
+
+## Login (Supabase Auth)
+
+O app exige login. Variáveis de ambiente (nunca no código):
+
+| Variável | O que é |
+|---|---|
+| `SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `SUPABASE_ANON_KEY` | chave pública (publishable/anon). **Nunca** use a `service_role` |
+| `ALLOWED_EMAILS` | e-mails autorizados, separados por vírgula. Vazio = ninguém entra |
+| `SUPABASE_JWT_SECRET` | só se o projeto usar o segredo HS256 legado; vazio = valida pelo JWKS |
+| `COOKIE_SECURE` | `false` só para testar em `http://localhost` no Safari |
+
+No painel do Supabase: crie seu usuário em *Authentication → Users* e **desligue o cadastro
+público** (*Sign In / Providers → Email → Allow new users to sign up*).
+
+**Dados anteriores ao login:** a migration 0002 deixa extratos já importados com `user_id` vazio
+(invisíveis). Para reivindicá-los, copie seu UUID em *Authentication → Users* e rode no SQL Editor:
+`UPDATE statement SET user_id = '<seu-uuid>' WHERE user_id = '';`
+
+**Limitações conhecidas:** a sessão dura o `exp` do token (1 h por padrão) e não há renovação
+automática; não há limite de tentativas no `/login` além do próprio Supabase (use senha longa e,
+se quiser, ative o captcha do Supabase); o tempo de resposta do `/login` ainda diferencia e-mail
+permitido de não permitido.

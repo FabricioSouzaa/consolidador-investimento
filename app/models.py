@@ -43,12 +43,17 @@ class MovementType(str, enum.Enum):
 
 
 class Statement(Base):
-    """Um arquivo importado. O hash garante que reimportar o mesmo arquivo não duplica dados."""
+    """Um arquivo importado por um usuário. O hash evita reimportar o mesmo arquivo.
+
+    Position e Movement herdam o dono via statement: consultas sempre partem de Statement.user_id.
+    """
 
     __tablename__ = "statement"
+    __table_args__ = (UniqueConstraint("user_id", "sha256", name="uq_statement_user_sha256"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)  # `sub` do JWT do Supabase
+    sha256: Mapped[str] = mapped_column(String(64))
     filename: Mapped[str] = mapped_column(String(255))
     period_start: Mapped[date] = mapped_column(Date)
     period_end: Mapped[date] = mapped_column(Date)
