@@ -17,6 +17,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "httpx", "ruff", "mypy"]
 
+[tool.setuptools.packages.find]
+include = ["app*"]  # migrations/ e tests/ não são pacotes instaláveis
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=85"
