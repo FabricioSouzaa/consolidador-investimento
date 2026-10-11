@@ -1,4 +1,5 @@
 import os
+import unicodedata
 from dataclasses import dataclass
 from typing import FrozenSet
 
@@ -16,6 +17,11 @@ def normalize_database_url(url: str) -> str:
 DATABASE_URL = normalize_database_url(os.environ.get("DATABASE_URL", "sqlite:///./consolidador.db"))
 
 
+def normalize_email(email: str) -> str:
+    """NFKC + casefold: 'K' (Kelvin) e variantes Unicode não podem imitar um e-mail permitido."""
+    return unicodedata.normalize("NFKC", email).strip().casefold()
+
+
 @dataclass(frozen=True)
 class AuthSettings:
     supabase_url: str  # https://<ref>.supabase.co
@@ -27,7 +33,7 @@ class AuthSettings:
 
 def get_auth_settings() -> AuthSettings:
     env = os.environ
-    emails = {e.strip().lower() for e in env.get("ALLOWED_EMAILS", "").split(",") if e.strip()}
+    emails = {normalize_email(e) for e in env.get("ALLOWED_EMAILS", "").split(",") if e.strip()}
     return AuthSettings(
         supabase_url=env.get("SUPABASE_URL", "").rstrip("/"),
         supabase_anon_key=env.get("SUPABASE_ANON_KEY", ""),

@@ -5,6 +5,7 @@ token em TODA rota protegida. Autorização é responsabilidade do app: a conex�
 ignora o RLS, então toda consulta precisa filtrar por `user_id`.
 """
 
+import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -13,7 +14,7 @@ import jwt
 from fastapi import Request
 from jwt import PyJWKClient
 
-from app.config import AuthSettings, get_auth_settings
+from app.config import AuthSettings, get_auth_settings, normalize_email
 
 ACCESS_COOKIE = "sb_access"
 _JWKS_ALGORITHMS = ["ES256", "RS256"]
@@ -37,7 +38,12 @@ class User:
 def _signing_key(token: str, settings: AuthSettings) -> Any:
     client = _jwks_clients.setdefault(
         settings.supabase_url,
-        PyJWKClient(f"{settings.supabase_url}/auth/v1/.well-known/jwks.json", cache_keys=True),
+        PyJWKClient(
+            f"{settings.supabase_url}/auth/v1/.well-known/jwks.json",
+            cache_keys=True,
+            lifespan=3600,
+            timeout=5,
+        ),
     )
     return client.get_signing_key_from_jwt(token).key
 
@@ -47,26 +53,33 @@ def verify_token(token: str, settings: Optional[AuthSettings] = None) -> User:
     settings = settings or get_auth_settings()
     if not settings.allowed_emails:  # falha fechado: sem allowlist ninguém entra
         raise NotAuthenticated("ALLOWED_EMAILS não configurado")
+    if not settings.supabase_url:  # sem emissor conhecido não há como validar `iss`
+        raise NotAuthenticated("SUPABASE_URL não configurado")
     try:
         algorithm = jwt.get_unverified_header(token).get("alg", "")
         options = {"require": ["exp", "sub"]}
         common: Dict[str, Any] = {"audience": "authenticated", "options": options}
-        if settings.supabase_url:
-            common["issuer"] = f"{settings.supabase_url}/auth/v1"
+        common["issuer"] = f"{settings.supabase_url}/auth/v1"
         if algorithm == "HS256" and settings.jwt_secret:
             claims = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"], **common)
-        elif algorithm in _JWKS_ALGORITHMS and settings.supabase_url:
+        elif algorithm in _JWKS_ALGORITHMS:
             key = _signing_key(token, settings)
             claims = jwt.decode(token, key, algorithms=_JWKS_ALGORITHMS, **common)
         else:
             raise NotAuthenticated("algoritmo não aceito")
-    except (jwt.PyJWTError, httpx.HTTPError) as exc:
+    except jwt.PyJWTError as exc:  # inclui PyJWKClientError (falha ao buscar o JWKS)
         raise NotAuthenticated(type(exc).__name__) from None
 
-    email = str(claims.get("email", "")).lower()
+    try:
+        user_id = str(uuid.UUID(str(claims["sub"])))
+    except ValueError:
+        raise NotAuthenticated("sub inválido") from None
+    if claims.get("is_anonymous"):
+        raise NotAuthenticated("usuário anônimo")
+    email = normalize_email(str(claims.get("email", "")))
     if email not in settings.allowed_emails:
         raise NotAuthenticated("e-mail fora da allowlist")
-    return User(id=str(claims["sub"]), email=email)
+    return User(id=user_id, email=email)
 
 
 def current_user(request: Request) -> User:
@@ -97,3 +110,18 @@ def password_login(email: str, password: str) -> Dict[str, Any]:
     if "access_token" not in data:
         raise LoginFailed("resposta inesperada")
     return {"access_token": data["access_token"], "expires_in": int(data.get("expires_in", 3600))}
+
+
+def revoke_session(token: str) -> None:
+    """Encerra a sessão no Supabase (best-effort: o logout local acontece de qualquer jeito)."""
+    settings = get_auth_settings()
+    if not (settings.supabase_url and settings.supabase_anon_key):
+        return
+    try:
+        httpx.post(
+            f"{settings.supabase_url}/auth/v1/logout",
+            headers={"apikey": settings.supabase_anon_key, "Authorization": f"Bearer {token}"},
+            timeout=5,
+        )
+    except httpx.HTTPError:
+        pass

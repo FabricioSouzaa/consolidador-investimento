@@ -122,3 +122,20 @@ def test_pdf_real_le_conta_corrente_e_proventos():
     kinds = {m.type for m in result.movements}
     assert MovementType.RENDIMENTO in kinds
     assert MovementType.CREDITO_CONTA in kinds
+
+
+def test_pdf_com_paginas_demais_e_recusado(monkeypatch):
+    import pdfplumber
+
+    class FakePdf:
+        pages = [object()] * 500
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(pdfplumber, "open", lambda _f: FakePdf())
+    with pytest.raises(ValueError, match="limite"):
+        extract_text(b"%PDF")

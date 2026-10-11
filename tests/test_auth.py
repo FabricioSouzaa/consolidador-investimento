@@ -1,6 +1,7 @@
 import httpx
 import pytest
 from cryptography.hazmat.primitives.asymmetric import ec
+from jwt.exceptions import PyJWKClientError
 from sqlalchemy import func, select
 
 from app import auth
@@ -101,7 +102,7 @@ def test_token_assimetrico_es256_via_jwks(monkeypatch):
 
 def test_falha_ao_buscar_jwks_nao_vira_erro_500(monkeypatch):
     def boom(token, settings):
-        raise httpx.ConnectError("sem rede")
+        raise PyJWKClientError("Fail to fetch data from the url")
 
     monkeypatch.setattr(auth, "_signing_key", boom)
     private = ec.generate_private_key(ec.SECP256R1())
@@ -209,3 +210,114 @@ def test_mesmo_arquivo_em_usuarios_diferentes_nao_conflita(client, session):
     assert owners == {USER_A["sub"], USER_B["sub"]}
     # e A continua barrado ao reimportar o próprio arquivo
     assert client.post("/import", files=PDF).status_code == 400
+
+
+# ---------- endurecimentos do code review ----------
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"sub": ""},  # sub vazio casaria com linhas legadas (user_id "")
+        {"sub": "nao-e-um-uuid"},
+        {"is_anonymous": True},
+        {"nbf": 9999999999},  # ainda não válido
+    ],
+)
+def test_claims_estranhas_sao_recusadas(overrides):
+    with pytest.raises(NotAuthenticated):
+        verify_token(make_token(**overrides))
+
+
+def test_email_com_unicode_imitando_o_permitido_e_recusado(monkeypatch):
+    monkeypatch.setenv("ALLOWED_EMAILS", "kleber@example.com")
+    with pytest.raises(NotAuthenticated):
+        verify_token(
+            make_token({"sub": USER_A["sub"], "email": "kleber@exаmple.com"})
+        )  # 'а' cirílico
+
+
+def test_email_do_token_e_normalizado_com_nfkc_e_casefold(monkeypatch):
+    monkeypatch.setenv("ALLOWED_EMAILS", "kleber@example.com")
+    # "K" (sinal Kelvin) normaliza para "k" via NFKC
+    user = verify_token(make_token({"sub": USER_A["sub"], "email": "\u212aleber@example.com"}))
+    assert user.email == "kleber@example.com"
+
+
+def test_sem_supabase_url_o_token_e_recusado_mesmo_com_segredo(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "")
+    with pytest.raises(NotAuthenticated):
+        verify_token(make_token())
+
+
+def test_logout_sem_login_nao_quebra(anon_client):
+    assert anon_client.post("/logout").status_code == 303
+
+
+def test_logout_revoga_a_sessao_no_supabase(client, monkeypatch):
+    calls = _fake_supabase(monkeypatch, status=204)
+    client.post("/logout")
+    url, kwargs = calls[0]
+    assert url == f"{SUPABASE_URL}/auth/v1/logout"
+    assert kwargs["headers"]["Authorization"].startswith("Bearer ")
+
+
+def test_logout_funciona_mesmo_se_supabase_estiver_fora(client, monkeypatch):
+    _fake_supabase(monkeypatch, error=httpx.ConnectError("fora"))
+    assert client.post("/logout").status_code == 303
+
+
+def test_post_de_outra_origem_e_recusado(client, session):
+    response = client.post("/import", files=PDF, headers={"Origin": "https://evil.example.com"})
+    assert response.status_code == 403
+    assert session.scalar(select(func.count()).select_from(Statement)) == 0
+    assert client.post("/logout", headers={"Origin": "https://evil.example.com"}).status_code == 403
+
+
+def test_cabecalhos_de_seguranca(anon_client):
+    headers = anon_client.get("/login").headers
+    assert headers["x-frame-options"] == "DENY"
+    assert headers["x-content-type-options"] == "nosniff"
+    assert "frame-ancestors 'none'" in headers["content-security-policy"]
+    assert "strict-transport-security" in headers
+
+
+def test_upload_anonimo_nem_chega_a_ler_o_corpo(anon_client, monkeypatch):
+    from starlette.requests import Request
+
+    async def explode(self, *args, **kwargs):
+        raise AssertionError("o corpo não deveria ser lido antes da autenticação")
+
+    monkeypatch.setattr(Request, "form", explode)
+    assert anon_client.post("/import", files=PDF).status_code == 303
+
+
+def test_content_length_gigante_e_recusado_sem_ler_o_corpo(client, monkeypatch):
+    from starlette.requests import Request
+
+    async def explode(self, *args, **kwargs):
+        raise AssertionError("não deveria ler")
+
+    monkeypatch.setattr(Request, "form", explode)
+    response = client.post("/import", headers={"content-length": str(50 * 1024 * 1024)})
+    assert response.status_code == 413
+
+
+def test_importacao_simultanea_do_mesmo_arquivo_vira_erro_amigavel(client, session, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    from app import main
+
+    def race(*args, **kwargs):
+        raise IntegrityError("INSERT", {}, Exception("unique"))
+
+    monkeypatch.setattr(main, "import_btg_pdf", race)
+    response = client.post("/import", files=PDF)
+    assert response.status_code == 400 and "já foi importado" in response.text
+
+
+def test_usuario_b_nao_alcanca_posicoes_de_a_nem_por_consulta_direta(client, session):
+    from app.auth import User
+    from app.main import _latest_portfolio
+
+    client.post("/import", files=PDF)
+    portfolio_b = _latest_portfolio(session, User(id=USER_B["sub"], email="b@example.com"))
+    assert portfolio_b["statement"] is None and portfolio_b["positions"] == []

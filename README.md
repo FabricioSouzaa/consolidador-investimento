@@ -34,3 +34,12 @@ O app exige login. Variáveis de ambiente (nunca no código):
 
 No painel do Supabase: crie seu usuário em *Authentication → Users* e **desligue o cadastro
 público** (*Sign In / Providers → Email → Allow new users to sign up*).
+
+**Dados anteriores ao login:** a migration 0002 deixa extratos já importados com `user_id` vazio
+(invisíveis). Para reivindicá-los, copie seu UUID em *Authentication → Users* e rode no SQL Editor:
+`UPDATE statement SET user_id = '<seu-uuid>' WHERE user_id = '';`
+
+**Limitações conhecidas:** a sessão dura o `exp` do token (1 h por padrão) e não há renovação
+automática; não há limite de tentativas no `/login` além do próprio Supabase (use senha longa e,
+se quiser, ative o captcha do Supabase); o tempo de resposta do `/login` ainda diferencia e-mail
+permitido de não permitido.

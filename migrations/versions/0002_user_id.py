@@ -22,12 +22,15 @@ _SQLITE_NAMING = {"uq": "uq_%(table_name)s_%(column_0_name)s"}
 def upgrade() -> None:
     postgres = op.get_bind().dialect.name == "postgresql"
     if postgres:
-        op.drop_constraint("statement_sha256_key", "statement", type_="unique")
+        op.execute("ALTER TABLE statement DROP CONSTRAINT IF EXISTS statement_sha256_key")
     # Linhas pré-existentes ficam com user_id "" (não pertencem a ninguém => invisíveis).
+    # Em duas etapas: no SQLite, adicionar a coluna e remover o default na mesma recriação da
+    # tabela deixaria as linhas antigas com NULL.
     with op.batch_alter_table("statement", naming_convention=_SQLITE_NAMING) as batch:
         batch.add_column(
             sa.Column("user_id", sa.String(length=36), nullable=False, server_default="")
         )
+    with op.batch_alter_table("statement", naming_convention=_SQLITE_NAMING) as batch:
         batch.alter_column("user_id", server_default=None)
         if not postgres:
             batch.drop_constraint("uq_statement_sha256", type_="unique")
