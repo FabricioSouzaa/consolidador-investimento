@@ -17,6 +17,7 @@
 </head>
 <body>
   <h1>Consolidador de Investimentos</h1>
+  <form action="/logout" method="post" style="float:right"><span>{{ user.email }}</span> <button type="submit">Sair</button></form>
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 
   <form action="/import" method="post" enctype="multipart/form-data">

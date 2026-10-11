@@ -21,9 +21,11 @@ class ImportResult:
     warnings: List[str] = field(default_factory=list)
 
 
-def import_btg_pdf(session: Session, filename: str, content: bytes) -> ImportResult:
+def import_btg_pdf(session: Session, user_id: str, filename: str, content: bytes) -> ImportResult:
     digest = hashlib.sha256(content).hexdigest()
-    if session.scalar(select(Statement).where(Statement.sha256 == digest)):
+    if session.scalar(
+        select(Statement).where(Statement.user_id == user_id, Statement.sha256 == digest)
+    ):
         raise ImportRejected("Este arquivo já foi importado.")
 
     try:
@@ -38,6 +40,7 @@ def import_btg_pdf(session: Session, filename: str, content: bytes) -> ImportRes
         )
 
     statement = Statement(
+        user_id=user_id,
         sha256=digest,
         filename=filename[:255],
         period_start=parsed.period_start,

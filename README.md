@@ -19,3 +19,18 @@ Banco: SQLite por padrão; para PostgreSQL (Supabase) defina `DATABASE_URL` com 
 ```
 
 Veja `CLAUDE.md` para as regras do projeto.
+
+## Login (Supabase Auth)
+
+O app exige login. Variáveis de ambiente (nunca no código):
+
+| Variável | O que é |
+|---|---|
+| `SUPABASE_URL` | `https://<ref>.supabase.co` |
+| `SUPABASE_ANON_KEY` | chave pública (publishable/anon). **Nunca** use a `service_role` |
+| `ALLOWED_EMAILS` | e-mails autorizados, separados por vírgula. Vazio = ninguém entra |
+| `SUPABASE_JWT_SECRET` | só se o projeto usar o segredo HS256 legado; vazio = valida pelo JWKS |
+| `COOKIE_SECURE` | `false` só para testar em `http://localhost` no Safari |
+
+No painel do Supabase: crie seu usuário em *Authentication → Users* e **desligue o cadastro
+público** (*Sign In / Providers → Email → Allow new users to sign up*).
