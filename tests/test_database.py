@@ -1,3 +1,5 @@
+import psycopg
+import pytest
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
@@ -47,3 +49,39 @@ def test_engine_postgres_usa_nullpool_e_sem_prepared_statements():
     engine = make_engine("postgresql+psycopg://u:p@localhost:6543/db")  # não conecta
     assert isinstance(engine.pool, NullPool)
     assert engine.dialect.name == "postgresql"
+
+
+def test_engine_postgres_repassa_opcoes_do_pooler_ao_driver(monkeypatch):
+    captured = {}
+
+    def fake_connect(*args, **kwargs):
+        captured.update(kwargs)
+        raise RuntimeError("parou antes de conectar")
+
+    monkeypatch.setattr(psycopg, "connect", fake_connect)
+    engine = make_engine("postgresql+psycopg://u:p@localhost:6543/db")
+    with pytest.raises(RuntimeError):
+        engine.raw_connection()
+    # Sem isso, o pooler em modo transaction quebra com "prepared statement ... does not exist".
+    assert captured["prepare_threshold"] is None
+    assert captured["connect_timeout"] == 10
+
+
+def test_url_invalida_nao_vaza_a_senha():
+    with pytest.raises(RuntimeError) as exc:
+        make_engine("user:senha-secreta@host/db")  # sem esquema: o SQLAlchemy ecoa a string
+    assert "senha-secreta" not in str(exc.value)
+    assert "senha-secreta" not in repr(exc.value.__cause__)
+
+
+def test_migracao_detecta_mudanca_de_precisao(tmp_path):
+    """compare_type=True: mudar Numeric(18,2) -> outro tipo precisa aparecer no diff."""
+    import sqlalchemy as sa
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'm.db'}")
+    with engine.begin() as connection:
+        connection.execute(sa.text("CREATE TABLE t (v INTEGER)"))
+        metadata = sa.MetaData()
+        sa.Table("t", metadata, sa.Column("v", sa.String(10)))
+        ctx = MigrationContext.configure(connection, opts={"compare_type": True})
+        assert compare_metadata(ctx, metadata) != []

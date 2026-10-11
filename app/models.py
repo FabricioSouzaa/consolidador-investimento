@@ -65,7 +65,7 @@ class Position(Base):
     __table_args__ = (UniqueConstraint("statement_id", "code"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    statement_id: Mapped[int] = mapped_column(ForeignKey("statement.id"))
+    statement_id: Mapped[int] = mapped_column(ForeignKey("statement.id", ondelete="CASCADE"))
     code: Mapped[str] = mapped_column(String(40))  # ticker ou código do título
     name: Mapped[str] = mapped_column(String(120))
     asset_class: Mapped[AssetClass] = mapped_column(Enum(AssetClass))
@@ -83,7 +83,9 @@ class Movement(Base):
     __tablename__ = "movement"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    statement_id: Mapped[int] = mapped_column(ForeignKey("statement.id"))
+    statement_id: Mapped[int] = mapped_column(
+        ForeignKey("statement.id", ondelete="CASCADE"), index=True
+    )
     occurred_on: Mapped[date] = mapped_column(Date)
     type: Mapped[MovementType] = mapped_column(Enum(MovementType))
     description: Mapped[str] = mapped_column(String(200))

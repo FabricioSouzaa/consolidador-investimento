@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from logging.config import fileConfig
 
@@ -17,10 +18,13 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from app import models  # noqa: F401, E402  (registra as tabelas no metadata)
-from app.config import DATABASE_URL  # noqa: E402
+from app.config import DATABASE_URL, normalize_database_url  # noqa: E402
 from app.db import Base, make_engine  # noqa: E402
 
-config.set_main_option("sqlalchemy.url", DATABASE_URL.replace("%", "%%"))
+# Migrations podem usar a conexão direta/session do Supabase (porta 5432), mais segura para DDL
+# que o pooler em modo transaction. Se não definida, usa a mesma URL do app.
+MIGRATIONS_URL = normalize_database_url(os.environ.get("MIGRATIONS_DATABASE_URL", DATABASE_URL))
+config.set_main_option("sqlalchemy.url", MIGRATIONS_URL.replace("%", "%%"))
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -50,6 +54,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        compare_type=True,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -68,10 +73,10 @@ def run_migrations_online() -> None:
     # Usa o mesmo engine do app (pooler do Supabase, sem prepared statements).
     # Para testes, `config.attributes["connection"]` injeta uma conexão pronta.
     injected = config.attributes.get("connection")
-    connectable = injected if injected is not None else make_engine(DATABASE_URL)
+    connectable = injected if injected is not None else make_engine(MIGRATIONS_URL)
 
     with connectable.connect() if injected is None else _noop(injected) as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
 
         with context.begin_transaction():
             context.run_migrations()

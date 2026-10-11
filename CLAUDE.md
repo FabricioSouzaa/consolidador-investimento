@@ -4,7 +4,7 @@ App web (FastAPI + Jinja + SQLAlchemy) que consolida investimentos da B3 a parti
 do BTG (PDF/CSV). Dados são pessoais e financeiros: trate como sensíveis.
 
 ## Comandos
-- Rodar: `.venv/bin/uvicorn app.main:app --reload`
+- Rodar (1ª vez: `.venv/bin/alembic upgrade head`): `.venv/bin/uvicorn app.main:app --reload`
 - Tudo de uma vez (o mesmo que o CI): `.venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/mypy app && .venv/bin/pytest`
 
 ## Regras (guardrails)
