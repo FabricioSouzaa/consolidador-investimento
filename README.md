@@ -8,5 +8,12 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest
 ```
 
-Banco: SQLite por padrão; para PostgreSQL defina `DATABASE_URL`.
+Banco: SQLite por padrão; para PostgreSQL (Supabase) defina `DATABASE_URL` com a URL do *pooler*
+(modo transaction). O schema é gerenciado por migrations:
+
+```bash
+.venv/bin/alembic upgrade head                                  # aplica
+.venv/bin/alembic revision --autogenerate -m "o que mudou"     # após alterar app/models.py
+```
+
 Veja `CLAUDE.md` para as regras do projeto.

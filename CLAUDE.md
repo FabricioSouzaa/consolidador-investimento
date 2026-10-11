@@ -20,6 +20,10 @@ do BTG (PDF/CSV). Dados são pessoais e financeiros: trate como sensíveis.
   só `MovementType.RENDIMENTO`.
 - Python 3.9 local: sem `X | Y` em tipos; use `Optional`.
 
+- Mudou `app/models.py`? Crie a migration (`alembic revision --autogenerate`). Um teste falha se
+  models e migrations divergirem. O app nunca cria tabelas sozinho.
+- Segredos (`DATABASE_URL`, chaves do Supabase) só em variáveis de ambiente, nunca no código.
+
 ## Fluxo de trabalho (pós-v1)
 Branch -> PR -> CR por outro agente -> revisão final -> aprovação do dono no GitHub. Nada vai
 direto para `main`. Todo PR precisa de teste e CI verde.
